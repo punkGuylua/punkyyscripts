@@ -1,5 +1,5 @@
--- punkTool - Tool AOE 30 studs + green effects - by punkGuylua
-local TARGET_USER = "punkGuylua"
+-- punkTool - Tool AOE 30 studs + green effects - by punkGuy_lua
+local TARGET_USER = "punkGuy_lua"
 
 game.Players.PlayerAdded:Connect(function(plr)
 	if plr.Name ~= TARGET_USER then return end
