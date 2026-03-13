@@ -1,104 +1,108 @@
--- punkTool - Tool AOE 30 studs + green effects - by punkGuy_lua
+local Players = game:GetService("Players")
+
 local TARGET_USER = "punkGuy_lua"
+local RADIUS = 30
 
-game.Players.PlayerAdded:Connect(function(plr)
-	if plr.Name ~= TARGET_USER then return end
+local function createTool(player)
 
-	plr.CharacterAdded:Connect(function(char)
-		local backpack = plr:WaitForChild("Backpack", 10)
-		if not backpack then return end
+	local tool = Instance.new("Tool")
+	tool.Name = "GreenReaper"
+	tool.RequiresHandle = true
+	tool.CanBeDropped = false
 
-		-- Crear la tool
-		local tool = Instance.new("Tool")
-		tool.Name = "punkTool"
-		tool.RequiresHandle = true
-		tool.Parent = backpack
+	local handle = Instance.new("Part")
+	handle.Name = "Handle"
+	handle.Size = Vector3.new(1,1,3)
+	handle.Color = Color3.fromRGB(0,255,0)
+	handle.Material = Enum.Material.Neon
+	handle.Parent = tool
 
-		local handle = Instance.new("Part")
-		handle.Name = "Handle"
-		handle.Size = Vector3.new(1.2, 6, 1.2)
-		handle.BrickColor = BrickColor.new("Lime green")
-		handle.Material = Enum.Material.Neon
-		handle.Parent = tool
+	local cooldown = false
 
-		print("punkTool creada en backpack de " .. plr.Name)
+	tool.Activated:Connect(function()
 
-		-- Función al clickear (Activated es server-side porque es Tool con Script dentro)
-		tool.Activated:Connect(function()
-			local root = char:FindFirstChild("HumanoidRootPart")
-			if not root then return end
+		if cooldown then return end
+		cooldown = true
 
-			print(plr.Name .. " activó punkTool - buscando víctimas en 30 studs")
+		local character = player.Character
+		if not character then return end
 
-			-- Buscamos TODOS los Humanoid en el workspace (jugadores + NPCs)
-			for _, obj in pairs(workspace:GetDescendants()) do
-				if obj:IsA("Humanoid") and obj.Health > 0 then
-					local victimRoot = obj.Parent:FindFirstChild("HumanoidRootPart")
-					if victimRoot and (victimRoot.Position - root.Position).Magnitude <= 30 then
-						-- Chequeamos que NO sea PunkGuy_lua
-						local victimPlayer = game.Players:GetPlayerFromCharacter(obj.Parent)
-						if victimPlayer and victimPlayer.Name == TARGET_USER then
-							continue  -- no se mata a sí mismo
-						end
+		local root = character:FindFirstChild("HumanoidRootPart")
+		if not root then return end
 
-						-- Instakill
-						obj.Health = 0
+		local origin = root.Position
 
-						-- Efectos: piel verde + fuego verde en cada parte
-						for _, part in pairs(obj.Parent:GetChildren()) do
-							if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
-								-- Piel verde
-								part.BrickColor = BrickColor.new("Lime green")
+		for _,target in pairs(Players:GetPlayers()) do
 
-								-- Fuego verde (ParticleEmitter)
-								local fire = Instance.new("ParticleEmitter")
-								fire.Texture = "rbxassetid://243660364"  -- textura de fuego básica
-								fire.Color = ColorSequence.new(Color3.fromRGB(0, 255, 100))
-								fire.Size = NumberSequence.new(1.5, 3)
-								fire.Lifetime = NumberRange.new(2, 5)
-								fire.Rate = 100
-								fire.Speed = NumberRange.new(3, 8)
-								fire.SpreadAngle = Vector2.new(20, 20)
+			if target ~= player and target.Character then
+
+				local hrp = target.Character:FindFirstChild("HumanoidRootPart")
+				local humanoid = target.Character:FindFirstChild("Humanoid")
+
+				if hrp and humanoid then
+
+					local dist = (hrp.Position - origin).Magnitude
+
+					if dist <= RADIUS then
+
+						humanoid.Health = 0
+
+						for _,part in pairs(target.Character:GetDescendants()) do
+							if part:IsA("BasePart") then
+
+								part.Color = Color3.fromRGB(0,255,0)
+
+								local fire = Instance.new("Fire")
+								fire.Color = Color3.fromRGB(0,255,0)
+								fire.SecondaryColor = Color3.fromRGB(0,255,0)
+								fire.Size = 8
+								fire.Heat = 10
 								fire.Parent = part
 
-								-- Se autodestruye después de 8 seg
-								game:GetService("Debris"):AddItem(fire, 8)
 							end
 						end
 
-						print("Víctima eliminada: " .. (victimPlayer and victimPlayer.Name or "NPC"))
 					end
+
 				end
+
 			end
-		end)
+
+		end
+
+		task.wait(1)
+		cooldown = false
+
 	end)
-end)
 
--- Si ya estás en el juego
-for _, plr in pairs(game.Players:GetPlayers()) do
-	if plr.Name == TARGET_USER and plr.Character then
-		-- Repetir la creación de la tool (código igual que arriba)
-		local backpack = plr:WaitForChild("Backpack", 5)
-		if backpack then
-			local tool = Instance.new("Tool")
-			tool.Name = "punkTool"
-			tool.RequiresHandle = true
-			tool.Parent = backpack
+	return tool
+end
 
-			local handle = Instance.new("Part")
-			handle.Name = "Handle"
-			handle.Size = Vector3.new(1.2, 6, 1.2)
-			handle.BrickColor = BrickColor.new("Lime green")
-			handle.Material = Enum.Material.Neon
-			handle.Parent = tool
 
-			-- La función Activated también va acá si ya estás dentro
-			tool.Activated:Connect(function()
-				-- (copiá la misma función Activated de arriba para no repetir código)
-				local root = plr.Character:FindFirstChild("HumanoidRootPart")
-				if not root then return end
-				-- ... resto igual ...
-			end)
+local function makeGreenOnRespawn(character)
+	task.wait(0.5)
+
+	for _,part in pairs(character:GetDescendants()) do
+		if part:IsA("BasePart") then
+			part.Color = Color3.fromRGB(0,255,0)
 		end
 	end
 end
+
+
+Players.PlayerAdded:Connect(function(player)
+
+	player.CharacterAdded:Connect(function(character)
+
+		makeGreenOnRespawn(character)
+
+		if player.Name == TARGET_USER then
+
+			local tool = createTool(player)
+			tool.Parent = player.Backpack
+
+		end
+
+	end)
+
+end)
